@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chrono Transcendence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="theme-dark-fantasy">
+
+  <canvas id="ambient-canvas" aria-hidden="true"></canvas>
+
+  <!-- Avisos persistentes (otra pestaña abierta, save dañado, almacenamiento lleno) -->
+  <div id="system-banner" class="system-banner hidden" role="alert"></div>
+
+  <div id="app" class="game-container">
+
+    <header class="top-nav">
+      <div class="header-branding">
+        <h1 class="game-title">CHRONO <span class="gold-text">TRANSCENDENCE</span></h1>
+        <div class="cycle-badge" id="reincarnation-badge">Ciclo Vital #1</div>
+      </div>
+
+      <div class="vital-stats-cluster">
+        <div class="vital-card" data-tooltip="1 año = 90 s reales. Los Achaques físicos y la Neblina Senil llegan con la edad; la Meditación retrasa la Neblina.">
+          <div class="vital-label">
+            <span>EDAD VITAL</span>
+            <span id="mortality-warning" class="status-indicator">Juventud</span>
+          </div>
+          <div class="vital-value">
+            <span id="player-age">14.00</span> / <span id="player-max-age">55.0</span> <span class="vital-unit">Años</span>
+          </div>
+          <div class="progress-bar-container"><div id="age-progress-bar" class="progress-bar-fill fill-vital"></div></div>
+          <div class="sub-hint">Vida restante: <span id="life-remaining">—</span></div>
+        </div>
+
+        <div class="vital-card" data-tooltip="Oro acumulado y balance diario (sueldo − alquiler). Si no puedes pagar el alquiler, te desahucian a un hogar inferior.">
+          <div class="vital-label">
+            <span>ORO</span>
+            <span id="net-income-label" class="net-positive">+0.00/día</span>
+          </div>
+          <div class="vital-value gold-text"><span id="player-gold">0.00</span> <span class="vital-unit">Monedas</span></div>
+          <div class="sub-hint">Hogar: <span id="current-housing-name" class="cyan-text">—</span></div>
+        </div>
+
+        <div class="vital-card karma-card" data-tooltip="Karma: moneda de prestigio para el Árbol. El Karma sin gastar da 'Karma Latente' (XP extra). El Eco Álmico es un multiplicador global que crece 5–15% por vida si superas tus récords.">
+          <div class="vital-label">
+            <span>KARMA</span>
+            <span class="purple-sparkle" id="latent-karma-label">Latente +0%</span>
+          </div>
+          <div class="vital-value purple-text"><span id="player-karma">0</span> <span class="vital-unit">Karma</span></div>
+          <div class="sub-hint">Al morir: <span id="pending-karma" class="gold-text">+0</span> · Eco <span id="soul-echo" class="gold-text">×1.00</span> (<span id="pending-echo">+0%</span>)</div>
+        </div>
+
+        <div class="time-controls">
+          <button id="btn-pause" class="btn-time" title="Pausar / reanudar">⏸</button>
+          <span id="dev-speed-group" class="dev-speed hidden">
+            <button class="btn-time active" data-speed="1">1x</button>
+            <button class="btn-time" data-speed="10">10x</button>
+            <button class="btn-time" data-speed="100">100x</button>
+            <button class="btn-time" data-speed="500">500x</button>
+          </span>
+          <button id="btn-audio-toggle" class="btn-time" title="Sonido">🔊</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <nav class="nav-tabs" role="tablist">
+        <button class="nav-tab active" data-tab="tab-occupations"><span class="tab-icon">⚔️</span><span>Senda Vital</span></button>
+        <button class="nav-tab" data-tab="tab-lattice"><span class="tab-icon">🌌</span><span>Árbol del Destino</span><span id="tree-unspent-badge" class="badge-pill hidden">!</span></button>
+        <button class="nav-tab" data-tab="tab-housing"><span class="tab-icon">🏛️</span><span>Hogares</span></button>
+        <button class="nav-tab" data-tab="tab-planner"><span class="tab-icon">📜</span><span>Planificador Vital</span><span id="planner-lock" class="lock-icon">🔒</span></button>
+        <button class="nav-tab" data-tab="tab-reincarnation"><span class="tab-icon">☸️</span><span>Grimorio</span></button>
+        <button class="nav-tab" data-tab="tab-settings"><span class="tab-icon">⚙️</span><span>Opciones</span></button>
+      </nav>
+
+      <!-- TAB 1: OCUPACIONES -->
+      <section id="tab-occupations" class="tab-pane active">
+        <div class="split-columns">
+          <div class="column-card">
+            <div class="column-header">
+              <div class="column-title-wrap">
+                <h2>TRABAJOS</h2>
+                <p class="column-subtitle">Generan oro y XP. Uno activo a la vez.</p>
+              </div>
+              <div class="active-badge" id="active-job-indicator">—</div>
+            </div>
+            <div id="jobs-list" class="cards-stack"></div>
+          </div>
+
+          <div class="column-card">
+            <div class="column-header">
+              <div class="column-title-wrap">
+                <h2>DISCIPLINAS</h2>
+                <p class="column-subtitle">Entrenamiento: atributos, hitos y desbloqueos.</p>
+              </div>
+              <div class="active-badge" id="active-skill-indicator">—</div>
+            </div>
+            <div id="skills-list" class="cards-stack"></div>
+          </div>
+
+          <div class="column-card side-info-panel">
+            <div class="column-header"><h2>ATRIBUTOS & ESTADO</h2></div>
+            <div class="attributes-grid" id="attributes-grid"></div>
+
+            <div class="conditions-panel">
+              <h3>Senescencia</h3>
+              <div id="conditions-list" class="conditions-list"></div>
+            </div>
+
+            <div class="live-math-inspector">
+              <h3>Desglose Matemático</h3>
+              <div class="math-box">
+                <div class="math-row"><span class="math-label">Disciplina:</span><span id="math-xp-rate" class="math-result">0 XP/día</span></div>
+                <div id="math-formula-details" class="math-details"></div>
+                <div class="math-row"><span class="math-label">Trabajo:</span><span id="math-job-rate" class="math-result">0 XP/día</span></div>
+                <div id="math-eta" class="math-details"></div>
+              </div>
+            </div>
+
+            <div class="chronicle-container">
+              <h3>Crónica</h3>
+              <div id="chronicle-feed" class="chronicle-feed" aria-live="polite"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: ÁRBOL -->
+      <section id="tab-lattice" class="tab-pane">
+        <div class="lattice-workspace">
+          <div class="canvas-viewport" id="lattice-viewport">
+            <canvas id="lattice-canvas"></canvas>
+            <div class="lattice-controls-overlay">
+              <div class="karma-available-pill"><span>Karma: </span><strong id="lattice-karma-display" class="gold-text">0</strong></div>
+              <div class="zoom-buttons">
+                <button id="btn-tree-zoom-in" class="btn-icon" title="Acercar">+</button>
+                <button id="btn-tree-zoom-out" class="btn-icon" title="Alejar">−</button>
+                <button id="btn-tree-recenter" class="btn-icon" title="Centrar">⌖</button>
+                <button id="btn-tree-respec" class="btn-tree-action" title="Reembolsar nodos">Purificar</button>
+              </div>
+              <div class="lattice-search-bar"><input type="text" id="tree-search-input" placeholder="Buscar (Karma, vida, oro, XP…)"></div>
+            </div>
+            <div class="canvas-hint"><span>Arrastra para mover · Rueda o pellizco para zoom · Toca un nodo para inspeccionarlo</span></div>
+          </div>
+
+          <div class="lattice-node-inspector">
+            <div class="inspector-empty-state" id="inspector-placeholder">
+              <div class="constellation-icon">✨</div>
+              <h3>Selecciona una constelación</h3>
+              <p>N · Erudición (build Intelectual) · E · Alquimia (economía) · S · Samsara (build Karma Rush) · O · Vida (build Longevidad). Cada rama culmina en un Keystone.</p>
+              <p class="dim-text" id="respec-hint"></p>
+            </div>
+            <div class="inspector-card hidden" id="inspector-details">
+              <div class="inspector-header">
+                <span id="node-type-badge" class="node-badge minor">Nodo Menor</span>
+                <h3 id="node-title">—</h3>
+              </div>
+              <div class="inspector-flavor" id="node-flavor"></div>
+              <div class="inspector-effect-box">
+                <span class="effect-header">Efecto permanente:</span>
+                <p id="node-effect-text" class="gold-text"></p>
+              </div>
+              <div class="inspector-requirements" id="node-req-info"></div>
+              <div class="inspector-cost-box"><span>Coste:</span><span id="node-cost-display" class="purple-text font-bold"></span></div>
+              <button id="btn-allocate-node" class="btn-allocate disabled">Imbuir</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: HOGARES -->
+      <section id="tab-housing" class="tab-pane">
+        <div class="housing-container">
+          <div class="section-hero">
+            <h2>ALBERGUES & SANTUARIOS</h2>
+            <p>Mudarse a un hogar mejor exige una fianza de 30 días de alquiler. Si tu oro no cubre el alquiler diario, te desahucian al hogar inferior. Malvivir al principio es inevitable.</p>
+          </div>
+          <div id="housing-list" class="housing-grid"></div>
+        </div>
+      </section>
+
+      <!-- TAB 4: PLANIFICADOR -->
+      <section id="tab-planner" class="tab-pane">
+        <div class="planner-container">
+          <div class="section-hero">
+            <h2>PLANIFICADOR VITAL</h2>
+            <p>Reglas que se ejecutan solas, en orden, una vez por vida: «cuando ocurra X, haz Y». Persisten entre reencarnaciones. Si la acción aún no es posible (tarea bloqueada, fianza insuficiente), la regla espera.</p>
+          </div>
+
+          <div id="planner-locked" class="column-card planner-locked">
+            <div class="constellation-icon">🔒</div>
+            <h3>Visión aún nublada</h3>
+            <p id="planner-locked-text"></p>
+          </div>
+
+          <div id="planner-unlocked" class="hidden">
+            <div class="column-card">
+              <div class="planner-header">
+                <h3>Nueva regla <span id="planner-slots" class="dim-text"></span></h3>
+                <label class="toggle-row hidden" id="auto-reinc-row">
+                  <input type="checkbox" id="auto-reincarnate-toggle"> Reencarnación automática (Rueda del Samsara)
+                </label>
+              </div>
+              <div class="planner-form">
+                <span class="planner-word">Cuando</span>
+                <select id="rule-cond-type">
+                  <option value="age">la edad sea ≥</option>
+                  <option value="jobLevel">el trabajo… alcance Lv ≥</option>
+                  <option value="skillLevel">la disciplina… alcance Lv ≥</option>
+                  <option value="gold">el oro sea ≥</option>
+                </select>
+                <select id="rule-cond-target" class="hidden"></select>
+                <input type="number" id="rule-cond-value" min="0" step="1" value="20">
+                <span class="planner-word">→</span>
+                <select id="rule-action-type">
+                  <option value="job">cambiar trabajo a</option>
+                  <option value="skill">cambiar disciplina a</option>
+                  <option value="housing">mudarse a</option>
+                </select>
+                <select id="rule-action-target"></select>
+                <button id="btn-add-rule" class="btn-primary">Añadir regla</button>
+              </div>
+            </div>
+            <div class="column-card">
+              <h3>Reglas activas</h3>
+              <ol id="planner-rules" class="planner-rules"></ol>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: GRIMORIO -->
+      <section id="tab-reincarnation" class="tab-pane">
+        <div class="reincarnation-hall">
+          <div class="section-hero">
+            <h2 class="purple-text">EL UMBRAL DE LA TRANSMUTACIÓN</h2>
+            <p>La muerte destila la experiencia en Karma y Eco Álmico. Sólo los niveles que superan tus récords alimentan el Eco.</p>
+          </div>
+          <div class="reincarnation-status-grid">
+            <div class="cycle-summary-card">
+              <h3>Ciclo actual</h3>
+              <ul class="summary-list">
+                <li><span>Edad:</span> <strong id="summary-age">—</strong></li>
+                <li><span>Niveles totales (récord):</span> <strong id="summary-levels">—</strong></li>
+                <li><span>Niveles de récord nuevos:</span> <strong id="summary-records">—</strong></li>
+                <li><span>Oro ganado en esta vida:</span> <strong id="summary-total-gold" class="gold-text">—</strong></li>
+                <li><span>Karma a heredar:</span> <strong id="summary-karma-gain" class="purple-text">—</strong></li>
+                <li><span>Eco Álmico a ganar:</span> <strong id="summary-echo-gain" class="gold-text">—</strong></li>
+                <li><span>Tiempo real de esta vida:</span> <strong id="summary-time">—</strong></li>
+              </ul>
+              <div class="action-block">
+                <button id="btn-voluntary-reincarnate" class="btn-danger">Inmolar recipiente (reencarnar ahora)</button>
+                <p class="btn-subtext">Reinicia edad, oro, niveles y desbloqueos. Conservas Karma, Eco Álmico, récords y el Árbol.</p>
+              </div>
+            </div>
+            <div class="grimoire-card">
+              <h3>Memoria Álmica por tarea</h3>
+              <p class="grimoire-desc">Multiplicador = 1 + 0.30 · ln(1 + récord / 5). Logarítmico: cada récord ayuda, ninguno rompe el juego.</p>
+              <div id="soul-memory-list" class="memory-chips-stack"></div>
+              <h3 class="mt">Vidas recientes</h3>
+              <div class="table-wrap"><table class="lives-table"><thead><tr><th>#</th><th>Edad</th><th>Niveles</th><th>Karma</th><th>Eco</th><th>Duración</th></tr></thead><tbody id="lives-table"></tbody></table></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: OPCIONES -->
+      <section id="tab-settings" class="tab-pane">
+        <div class="settings-container">
+          <div class="column-card">
+            <h2>PERSISTENCIA</h2>
+            <div class="settings-group">
+              <div class="setting-item"><button id="btn-manual-save" class="btn-primary">💾 Guardar ahora</button><span id="save-status">Guardado automático cada 15 s y al cerrar la pestaña.</span></div>
+              <div class="setting-item"><button id="btn-export-save" class="btn-secondary">📋 Exportar partida</button><span>Copia una clave CT2 al portapapeles.</span></div>
+              <div class="setting-item"><button id="btn-import-save" class="btn-secondary">📥 Importar partida</button><span>Acepta claves CT2 y del prototipo v1.</span></div>
+              <div class="setting-item"><label class="toggle-row"><input type="checkbox" id="toggle-sound" checked> Sonido</label><label class="toggle-row"><input type="checkbox" id="toggle-particles" checked> Partículas de fondo</label></div>
+              <div class="setting-item danger-zone"><button id="btn-hard-reset" class="btn-danger">⚠️ Destrucción del alma (reset total)</button><span>Borra todo el progreso para siempre.</span></div>
+            </div>
+            <p class="dim-text mt">Progreso sin conexión: hasta <strong id="offline-cap">12 h</strong>, al 100%. La simulación se detiene al morir (salvo reencarnación automática).</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL: MUERTE -->
+  <div id="death-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-box death-tomb">
+      <div class="tomb-rune">☠️</div>
+      <h2 class="death-title">EL HILO DE LA VIDA SE HA CORTADO</h2>
+      <p id="death-cause-text" class="death-cause"></p>
+      <div class="death-breakdown">
+        <div class="breakdown-stat"><span class="breakdown-label">Niveles cultivados:</span><span id="death-levels-stat" class="breakdown-val">0</span></div>
+        <div class="breakdown-stat"><span class="breakdown-label">Niveles de récord:</span><span id="death-records-stat" class="breakdown-val">0</span></div>
+        <div class="breakdown-stat"><span class="breakdown-label">Karma cosechado:</span><span id="death-karma-stat" class="breakdown-val purple-text font-bold">+0</span></div>
+        <div class="breakdown-stat"><span class="breakdown-label">Eco Álmico:</span><span id="death-memory-stat" class="breakdown-val gold-text">+0%</span></div>
+      </div>
+      <p class="death-quote">"El recipiente caduca, pero el alma retiene cada gota de dolor y sabiduría."</p>
+      <p class="dim-text">Consejo: puedes purificar el Árbol gratis ahora o durante el primer año de la próxima vida.</p>
+      <div class="modal-actions">
+        <button id="btn-modal-tree" class="btn-secondary">Visitar el Árbol</button>
+        <button id="btn-modal-reincarnate" class="btn-reincarnate-action">Trascender</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: INFORME OFFLINE -->
+  <div id="offline-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <h2 class="gold-text">Sueño Cósmico</h2>
+      <div id="offline-report" class="offline-report"></div>
+      <button id="btn-offline-close" class="btn-primary">Continuar</button>
+    </div>
+  </div>
+
+  <div id="eureka-container" class="eureka-container"></div>
+
+  <div id="global-tooltip" class="global-tooltip hidden" role="tooltip">
+    <div id="tooltip-title" class="tooltip-title"></div>
+    <div id="tooltip-body" class="tooltip-body"></div>
+    <div id="tooltip-formula" class="tooltip-formula"></div>
+  </div>
+
+  <!-- Orden de carga: núcleo puro → contenido → sistemas → UI → motor -->
+  <script src="js/utils.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/lattice-data.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/formulas.js"></script>
+  <script src="js/simulation.js"></script>
+  <script src="js/save.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/tree.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/engine.js"></script>
+</body>
+</html>

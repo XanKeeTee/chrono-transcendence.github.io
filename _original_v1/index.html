@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chrono Transcendence — Idle Dark Fantasy RPG</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body class="theme-dark-fantasy">
+
+  <!-- Floating particles background canvas -->
+  <canvas id="ambient-canvas"></canvas>
+
+  <div id="app" class="game-container">
+    
+    <!-- TOP BAR: Vital Status, Time, Resources & Prestige Indicators -->
+    <header class="top-nav">
+      <div class="header-branding">
+        <h1 class="game-title">CHRONO <span class="gold-text">TRANSCENDENCE</span></h1>
+        <div class="cycle-badge" id="reincarnation-badge">Ciclo Vital #1</div>
+      </div>
+
+      <div class="vital-stats-cluster">
+        <!-- Age & Mortality -->
+        <div class="vital-card" id="age-vital-card" data-tooltip="La arena de la vida cae implacable. A partir de los 45 años sufrirás achaques de senescencia a menos que desarrolles alquimia o longevidad.">
+          <div class="vital-label">
+            <span>EDAD VITAL</span>
+            <span id="mortality-warning" class="status-indicator">Saludable</span>
+          </div>
+          <div class="vital-value">
+            <span id="player-age">14.00</span> / <span id="player-max-age">70.0</span> <span class="vital-unit">Años</span>
+          </div>
+          <div class="progress-bar-container">
+            <div id="age-progress-bar" class="progress-bar-fill fill-vital"></div>
+          </div>
+        </div>
+
+        <!-- Gold & Net Balance -->
+        <div class="vital-card" id="gold-card" data-tooltip="Tus reservas de oro y el balance neto diario tras deducir gastos de alojamiento y sustento.">
+          <div class="vital-label">
+            <span>ORO ACUMULADO</span>
+            <span id="net-income-label" class="net-positive">+0.00/día</span>
+          </div>
+          <div class="vital-value gold-text">
+            <span id="player-gold">0.00</span> <span class="vital-unit">Monedas</span>
+          </div>
+          <div class="housing-badge">
+            Alojamiento: <span id="current-housing-name" class="cyan-text">Tienda Raída</span>
+          </div>
+        </div>
+
+        <!-- Karma Essence (Prestige Currency) -->
+        <div class="vital-card karma-card" id="karma-card" data-tooltip="Puntos de Karma estelar obtenidos tras la muerte y reencarnación. Se usan para imbuir nodos permanentes en el Árbol del Destino.">
+          <div class="vital-label">
+            <span>KARMA DEL ALMA</span>
+            <span class="purple-sparkle">✦ Celestial</span>
+          </div>
+          <div class="vital-value purple-text">
+            <span id="player-karma">0</span> <span class="vital-unit">Karma</span>
+          </div>
+          <div class="pending-karma-hint">
+            Al morir: <span id="pending-karma" class="gold-text">+0 Karma</span>
+          </div>
+        </div>
+
+        <!-- Time Control / Speed -->
+        <div class="time-controls">
+          <button id="btn-pause" class="btn-time" title="Pausar / Reanudar flujo temporal">⏸</button>
+          <button id="btn-speed-1" class="btn-time active" data-speed="1">1x</button>
+          <button id="btn-speed-2" class="btn-time" data-speed="2">2x</button>
+          <button id="btn-speed-5" class="btn-time" data-speed="5">5x</button>
+          <button id="btn-audio-toggle" class="btn-time" title="Silenciar / Activar Sonido Sintetizado">🔊</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN INTERACTION AREA: 3 Columns Layout or Tab Navigation -->
+    <main class="main-content">
+      
+      <!-- NAVIGATION TABS -->
+      <nav class="nav-tabs">
+        <button class="nav-tab active" data-tab="tab-occupations">
+          <span class="tab-icon">⚔️</span>
+          <span>Senda Vital & Ocupaciones</span>
+        </button>
+        <button class="nav-tab" data-tab="tab-lattice">
+          <span class="tab-icon">🌌</span>
+          <span>Árbol del Destino (Celestial Lattice)</span>
+          <span id="tree-unspent-badge" class="badge-pill hidden">0</span>
+        </button>
+        <button class="nav-tab" data-tab="tab-housing">
+          <span class="tab-icon">🏛️</span>
+          <span>Propiedades & Sustento</span>
+        </button>
+        <button class="nav-tab" data-tab="tab-reincarnation">
+          <span class="tab-icon">☸️</span>
+          <span>Grimorio & Reencarnación</span>
+        </button>
+        <button class="nav-tab" data-tab="tab-settings">
+          <span class="tab-icon">⚙️</span>
+          <span>Opciones & Datos</span>
+        </button>
+      </nav>
+
+      <!-- TAB 1: OCCUPATIONS & SKILLS -->
+      <section id="tab-occupations" class="tab-pane active">
+        <div class="split-columns">
+          
+          <!-- JOBS COLUMN -->
+          <div class="column-card">
+            <div class="column-header">
+              <div class="column-title-wrap">
+                <h2>TRABAJOS VITALES</h2>
+                <p class="column-subtitle">Generan oro y curten el cuerpo y la mente. Selecciona una ocupación activa.</p>
+              </div>
+              <div class="active-badge" id="active-job-indicator">Activo: Mendigo</div>
+            </div>
+
+            <div id="jobs-list" class="cards-stack">
+              <!-- Dynamically populated by engine.js -->
+            </div>
+          </div>
+
+          <!-- SKILLS COLUMN -->
+          <div class="column-card">
+            <div class="column-header">
+              <div class="column-title-wrap">
+                <h2>HABILIDADES & DISCIPLINAS</h2>
+                <p class="column-subtitle">Entrenamiento concienzudo. Otorga bonificaciones permanentes y sinergias.</p>
+              </div>
+              <div class="active-badge" id="active-skill-indicator">Activo: Meditación</div>
+            </div>
+
+            <div id="skills-list" class="cards-stack">
+              <!-- Dynamically populated by engine.js -->
+            </div>
+          </div>
+
+          <!-- SUMMARY & REAL-TIME MULTIPLIER BREAKDOWN COLUMN -->
+          <div class="column-card side-info-panel">
+            <div class="column-header">
+              <h2>ATRIBUTOS & SINERGIAS</h2>
+            </div>
+            
+            <div class="attributes-grid">
+              <div class="attr-box" id="attr-str">
+                <span class="attr-icon">💪</span>
+                <div class="attr-meta">
+                  <span class="attr-name">Fuerza Física</span>
+                  <span class="attr-val" id="val-str">1.00</span>
+                </div>
+              </div>
+              <div class="attr-box" id="attr-int">
+                <span class="attr-icon">📖</span>
+                <div class="attr-meta">
+                  <span class="attr-name">Intelecto</span>
+                  <span class="attr-val" id="val-int">1.00</span>
+                </div>
+              </div>
+              <div class="attr-box" id="attr-vit">
+                <span class="attr-icon">🩸</span>
+                <div class="attr-meta">
+                  <span class="attr-name">Vitalidad</span>
+                  <span class="attr-val" id="val-vit">1.00</span>
+                </div>
+              </div>
+              <div class="attr-box" id="attr-arc">
+                <span class="attr-icon">🔮</span>
+                <div class="attr-meta">
+                  <span class="attr-name">Afinidad Arcana</span>
+                  <span class="attr-val" id="val-arc">1.00</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="live-math-inspector">
+              <h3>Desglose Matemático Activo</h3>
+              <div id="live-math-content" class="math-box">
+                <div class="math-row">
+                  <span class="math-label">Tasa de XP activa:</span>
+                  <span id="math-xp-rate" class="math-result">0.00 XP/s</span>
+                </div>
+                <div id="math-formula-details" class="math-details">
+                  Base * Multiplicadores
+                </div>
+              </div>
+            </div>
+
+            <!-- CHRONICLE LOG -->
+            <div class="chronicle-container">
+              <h3>Crónica de Eventos</h3>
+              <div id="chronicle-feed" class="chronicle-feed">
+                <div class="chronicle-entry">Despiertas a los 14 años en un callejón sombrío. Tu alma resuena con fragmentos de vidas olvidadas.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- TAB 2: CELESTIAL LATTICE (POE-STYLE INTERACTIVE CANVAS TREE) -->
+      <section id="tab-lattice" class="tab-pane">
+        <div class="lattice-workspace">
+          
+          <!-- LATTICE CANVAS CONTAINER -->
+          <div class="canvas-viewport" id="lattice-viewport">
+            <canvas id="lattice-canvas"></canvas>
+
+            <!-- Floating Viewport Controls -->
+            <div class="lattice-controls-overlay">
+              <div class="karma-available-pill">
+                <span>Karma Disponible: </span>
+                <strong id="lattice-karma-display" class="gold-text">0</strong>
+              </div>
+              <div class="zoom-buttons">
+                <button id="btn-tree-zoom-in" class="btn-icon" title="Acercar (Zoom In)">+</button>
+                <button id="btn-tree-zoom-out" class="btn-icon" title="Alejar (Zoom Out)">−</button>
+                <button id="btn-tree-recenter" class="btn-icon" title="Centrar Árbol">⌖</button>
+                <button id="btn-tree-respec" class="btn-tree-action" title="Reembolsar todos los nodos">Reiniciar Nodos</button>
+              </div>
+              <div class="lattice-search-bar">
+                <input type="text" id="tree-search-input" placeholder="Buscar nodo (ej: Longevidad, Karma, Fuerza)...">
+              </div>
+            </div>
+
+            <!-- Mini guide hint -->
+            <div class="canvas-hint">
+              <span>🖱️ Arrastra para explorar • Rueda del ratón para Zoom • Clic en nodo para imbuir</span>
+            </div>
+          </div>
+
+          <!-- NODE INSPECTOR SIDE PANEL -->
+          <div class="lattice-node-inspector" id="node-inspector">
+            <div class="inspector-empty-state" id="inspector-placeholder">
+              <div class="constellation-icon">✨</div>
+              <h3>Selecciona una Constelación</h3>
+              <p>Haz clic en cualquier nodo del firmamento para examinar sus secretos arcanos, requisitos e imbuirlo con Karma.</p>
+            </div>
+
+            <div class="inspector-card hidden" id="inspector-details">
+              <div class="inspector-header">
+                <span id="node-type-badge" class="node-badge minor">Nodo Menor</span>
+                <h3 id="node-title">Nombre del Nodo</h3>
+              </div>
+              <div class="inspector-flavor" id="node-flavor">Texto de ambientación...</div>
+              <div class="inspector-effect-box">
+                <span class="effect-header">Efecto Permanente:</span>
+                <p id="node-effect-text" class="gold-text">+10% XP</p>
+              </div>
+              <div class="inspector-requirements" id="node-req-info">
+                <span>Requisitos: Conectado a nodo activado</span>
+              </div>
+              <div class="inspector-cost-box">
+                <span>Coste de Imbuición:</span>
+                <span id="node-cost-display" class="purple-text font-bold">5 Karma</span>
+              </div>
+              <button id="btn-allocate-node" class="btn-allocate disabled">Imbuir con Karma</button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- TAB 3: HOUSING & EXPENSES -->
+      <section id="tab-housing" class="tab-pane">
+        <div class="housing-container">
+          <div class="section-hero">
+            <h2>ALBERGUES, TIERRAS & SANTUARIOS</h2>
+            <p>Un cuerpo desgastado en la intemperie envejece con rapidez. Mejora tu refugio para acelerar la regeneración, retrasar la vejez y potenciar tu aprendizaje diario a cambio de un tributo de oro.</p>
+          </div>
+
+          <div id="housing-list" class="housing-grid">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: REINCARNATION & GRIMOIRE -->
+      <section id="tab-reincarnation" class="tab-pane">
+        <div class="reincarnation-hall">
+          <div class="section-hero">
+            <h2 class="purple-text">EL UMBRAL DE LA TRANSMUTACIÓN DEL ALMA</h2>
+            <p>La muerte no es el fin, sino la destilación de la experiencia terrenal en Esencia Kármica pura.</p>
+          </div>
+
+          <div class="reincarnation-status-grid">
+            <div class="cycle-summary-card">
+              <h3>Tu Ciclo Actual</h3>
+              <ul class="summary-list">
+                <li><span>Años vividos:</span> <strong id="summary-age">14.0</strong></li>
+                <li><span>Nivel más alto de Trabajo:</span> <strong id="summary-highest-job">Mendigo (Lv 0)</strong></li>
+                <li><span>Nivel más alto de Disciplina:</span> <strong id="summary-highest-skill">Meditación (Lv 0)</strong></li>
+                <li><span>Oro generado histórico:</span> <strong id="summary-total-gold" class="gold-text">0.00</strong></li>
+                <li><span>Puntos de Karma a heredar:</span> <strong id="summary-karma-gain" class="purple-text">+0 Karma</strong></li>
+              </ul>
+              
+              <div class="action-block">
+                <button id="btn-voluntary-reincarnate" class="btn-danger">
+                  Inmolar Recipiente Mortal (Reencarnar Ahora)
+                </button>
+                <p class="btn-subtext">Reinicia edad, oro, trabajos y habilidades, pero conserva tus multiplicadores de aprendizaje y te entrega el Karma acumulado.</p>
+              </div>
+            </div>
+
+            <div class="grimoire-card">
+              <h3>Multiplicadores de Memoria Álmica</h3>
+              <p class="grimoire-desc">Cada nivel alcanzado en vidas previas otorga un multiplicador pasivo permanente para siempre acelerar las vidas posteriores.</p>
+              <div id="soul-memory-list" class="memory-chips-stack">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: SETTINGS & DATA -->
+      <section id="tab-settings" class="tab-pane">
+        <div class="settings-container">
+          <div class="column-card">
+            <h2>GESTIÓN DEL DESTINO Y PERSISTENCIA</h2>
+            <div class="settings-group">
+              <div class="setting-item">
+                <button id="btn-manual-save" class="btn-primary">💾 Guardar Partida Inmediatamente</button>
+                <span>El juego guarda automáticamente cada 10 segundos en localStorage.</span>
+              </div>
+              <div class="setting-item">
+                <button id="btn-export-save" class="btn-secondary">📋 Exportar Partida (Base64)</button>
+                <span>Genera una clave cifrada de guardado para trasladar a otro navegador.</span>
+              </div>
+              <div class="setting-item">
+                <button id="btn-import-save" class="btn-secondary">📥 Importar Partida</button>
+                <span>Cargar partida guardada desde texto codificado.</span>
+              </div>
+              <div class="setting-item danger-zone">
+                <button id="btn-hard-reset" class="btn-danger">⚠️ Destrucción del Alma (Hard Reset)</button>
+                <span>Borra todo el progreso, Karma y memoria álmica para siempre.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL: DEATH SCREEN (TRANSITION TO PRESTIGE) -->
+  <div id="death-modal" class="modal-overlay hidden">
+    <div class="modal-box death-tomb">
+      <div class="tomb-rune">☠️</div>
+      <h2 class="death-title">EL HILO DE LA VIDA SE HA CORTADO</h2>
+      <p id="death-cause-text" class="death-cause">Tu cuerpo ha sucumbido al paso implacable de los años a los 70 años.</p>
+
+      <div class="death-breakdown">
+        <div class="breakdown-stat">
+          <span class="breakdown-label">Niveles Totales Cultivados:</span>
+          <span id="death-levels-stat" class="breakdown-val">0</span>
+        </div>
+        <div class="breakdown-stat">
+          <span class="breakdown-label">Esencia de Karma Cosechada:</span>
+          <span id="death-karma-stat" class="breakdown-val purple-text font-bold">+0 Karma</span>
+        </div>
+        <div class="breakdown-stat">
+          <span class="breakdown-label">Memoria Álmica Consolidada:</span>
+          <span id="death-memory-stat" class="breakdown-val gold-text">+0% Velocidad</span>
+        </div>
+      </div>
+
+      <p class="death-quote">"El recipiente caduca, pero el alma retiene cada gota de dolor y sabiduría."</p>
+
+      <button id="btn-modal-reincarnate" class="btn-reincarnate-action">
+        Trascender hacia una Nueva Encarnación
+      </button>
+    </div>
+  </div>
+
+  <!-- FLOATING EUREKA CRITICAL NUMBERS CONTAINER -->
+  <div id="eureka-container" class="eureka-container"></div>
+
+  <!-- UNIVERSAL TOOLTIP ELEMENT -->
+  <div id="global-tooltip" class="global-tooltip hidden">
+    <div id="tooltip-title" class="tooltip-title">Título</div>
+    <div id="tooltip-body" class="tooltip-body">Cuerpo</div>
+    <div id="tooltip-formula" class="tooltip-formula"></div>
+  </div>
+
+  <!-- GAME LOGIC SCRIPTS -->
+  <script src="js/audio.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/tree.js"></script>
+  <script src="js/engine.js"></script>
+</body>
+</html>
